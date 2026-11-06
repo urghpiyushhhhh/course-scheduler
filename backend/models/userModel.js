@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
@@ -25,8 +26,13 @@ const userSchema = new mongoose.Schema(
       default: "Student",
     },
   },
-  { timestamps: true } // automatically adds createdAt and updatedAt fields
+  { timestamps: true }
 );
+
+// Method to compare entered password with hashed password
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 // Optional: Clean output so password doesn’t get returned accidentally
 userSchema.set("toJSON", {

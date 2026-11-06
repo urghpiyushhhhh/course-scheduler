@@ -1,51 +1,100 @@
-import User from '../models/userModel.js';
-import jwt from 'jsonwebtoken';
+import User from "../models/userModel.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-// Generate JWT token
-const generateToken = (id, role) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+// Helper to generate JWT token
+const generateToken = (id, role, name) => {
+  return jwt.sign(
+    { id: id.toString(), role, name },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 };
 
-// Register user
+// 📝 Register user
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    const userExists = await User.findOne({ email });
-    if (userExists) return res.status(400).json({ message: 'User already exists' });
+    // Validation
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "All fields required" });
+    }
 
-    const user = await User.create({ name, email, password, role });
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+    });
+
     res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id, user.role),
+      message: "Registration successful",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("❌ Registration Error:", error);
+    res.status(500).json({ message: "Registration failed" });
   }
 };
 
-// Login user
+// 🔐 Login user
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const token = generateToken(user._id, user.role, user.name);
 
     res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
+      message: "Login successful",
+      token,
       role: user.role,
-      token: generateToken(user._id, user.role),
+      name: user.name,
+      id: user._id,
     });
+  } catch (err) {
+    console.error("❌ Login Error:", err);
+    res.status(500).json({ message: "Login failed" });
+  }
+};
+
+// ✅ Verify Token
+export const verifyTokenHandler = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "No token provided" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    res.json({ valid: true, decoded });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(401).json({ valid: false, message: "Invalid token" });
   }
 };

@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -14,10 +15,28 @@ const App = () => (
     <Router>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/timetable" element={<Timetable />} />
+        
+        {/* Generic dashboard route which redirects based on user role */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/timetable"
+          element={
+            <ProtectedRoute>
+              <Timetable />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/admin"
@@ -43,6 +62,9 @@ const App = () => (
             </ProtectedRoute>
           }
         />
+
+        {/* Fallback route */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   </AuthProvider>
